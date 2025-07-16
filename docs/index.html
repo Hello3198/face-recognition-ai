@@ -1,5 +1,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script>
     const PROXY = "https://proxy.cors.sh/";
     const URL = PROXY + "https://teachablemachine.withgoogle.com/models/rPgActXOw/";
@@ -27,7 +29,8 @@
         document.getElementById("webcam").srcObject = webcam.webcam;
         statusEl.innerText = "Model loaded. Ready!";
       } catch (error) {
-        statusEl.innerText = "❌ Failed to load model: " + error;
+        console.error("Model load failed:", error);
+        statusEl.innerText = "❌ Failed to load model: " + error.message;
       }
     }
 
@@ -83,3 +86,4 @@
 
     init();
 </script>
+
