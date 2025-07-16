@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Amity AI Face Watcher</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #bg {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: linear-gradient(60deg, #74ABE2, #5563DE);
+      animation: bgAnimate 10s ease infinite;
+      z-index: -1;
+    }
+    @keyframes bgAnimate {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #fff;
+    }
+    #logo {
+      max-width: 200px;
+      margin-bottom: 20px;
+    }
+    #main {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    video {
+      border: 3px solid #fff;
+      border-radius: 8px;
+      width: 360px;
+      height: 270px;
+    }
+    #statusBox {
+      background: rgba(255,255,255,0.2);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      width: 220px;
+    }
+    #status {
+      font-size: 1.2em; margin-bottom: 10px;
+    }
+    button {
+      margin: 4px;
+      padding: 8px 16px;
+      font-size: 1em;
+      border: 2px solid #fff;
+      border-radius: 4px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <div id="container">
+    <img id="logo" src="https://upload.wikimedia.org/wikipedia/en/f/f4/Amity_International_School_logo.png" alt="Amity International School">
+    <div id="main">
+      <video id="webcam" autoplay muted playsinline></video>
+      <div id="statusBox">
+        <div id="status">Loading model...</div>
+        <div id="buttonArea" style="display:none;">
+          <button id="btnKnown">Known</button>
+          <button id="btnUnknown">Unknown</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+  <script>
+    const PROXY = "https://cors-anywhere.herokuapp.com/";
+    const URL = PROXY + "https://teachablemachine.withgoogle.com/models/rPgActXOw/";
+
+    let model, webcam, maxPredictions, sessionKnown = {};
+    const statusEl = document.getElementById("status");
+    const btnArea = document.getElementById("buttonArea");
+    const btnKnown = document.getElementById("btnKnown");
+    const btnUnknown = document.getElementById("btnUnknown");
+    const beep = document.getElementById("beep");
+
+    async function init() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      webcam = new tmImage.Webcam(360, 270, true);
+      await webcam.setup({ facingMode: "user" });
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      document.getElementById("webcam").srcObject = webcam.webcam;
+      statusEl.innerText = "Model loaded. Ready!";
+    }
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+      prediction.sort((a, b) => b.probability - a.probability);
+      const top = prediction[0];
+      const cls = top.className;
+      const conf = top.probability;
+
+      if (conf < 0.2) {
+        updateState("Safe", false);
+      } else if (sessionKnown[cls]) {
+        updateState(`Verified (${cls})`, false);
+      } else if (cls !== "Stranger") {
+        updateState(`Verified (${cls})`, false);
+      } else {
+        updateState("Suspicious Activity Detected", true);
+      }
+    }
+
+    function updateState(msg, suspect) {
+      statusEl.textContent = msg;
+      if (suspect) {
+        document.body.style.backgroundColor = "rgba(255,0,0,0.2)";
+        beep.play();
+        btnArea.style.display = "block";
+      } else {
+        document.body.style.backgroundColor = "";
+        beep.pause(); beep.currentTime = 0;
+        btnArea.style.display = "none";
+      }
+    }
+
+    btnKnown.onclick = () => {
+      const name = prompt("Name of the person?");
+      if (name) {
+        sessionKnown["Stranger"] = name;
+        updateState(`Verified (${name})`, false);
+      }
+    };
+
+    btnUnknown.onclick = () => {
+      alert("Unknown person not added. Will alert next time.");
+      btnArea.style.display = "none";
+    };
+
+    init();
+  </script>
+</body>
+</html>
